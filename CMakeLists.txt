@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(custom_relu_setup LANGUAGES CXX CUDA)
+project(custom_relu_setup_cmake LANGUAGES CXX CUDA)
 
 # 指定 C++ 标准
 set(CMAKE_CXX_STANDARD 17)
@@ -41,12 +41,6 @@ set(SRC
 
 add_definitions("-DPADDLE_WITH_CUDA")
 
-# 生成一个共享库，名字和 setup.py 中给的 name 保持一致
-add_library(${PROJECT_NAME} SHARED csrc/relu.cu)
-target_compile_options(${PROJECT_NAME}
-  PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>
-)
-
 # 链接 Paddle 和 CUDA 运行时
 include_directories(/usr/local/lib/python3.12/dist-packages/paddle/include)
 include_directories(${pybind11_INCLUDE_DIRS})
@@ -61,19 +55,38 @@ find_library(PADDLE_LIB
   REQUIRED
 )
 
-message(STATUS "PADDLE_LIB = ${PADDLE_LIB}")
+# 查找 phi_core（包含 PD_GetOpMetaInfoMap）
+find_library(PADDLE_PHI_CORE_LIB
+  NAMES phi_core
+  PATHS
+    /usr/local/lib/python3.12/dist-packages/paddle/libs
+  REQUIRED
+)
+
+message(STATUS "Found Paddle lib = ${PADDLE_LIB}")
+message(STATUS "Found Paddle phi_core: ${PADDLE_PHI_CORE_LIB}")
+
+# 生成一个共享库，名字和 setup.py 中给的 name 保持一致
+add_library(${PROJECT_NAME} SHARED csrc/relu.cu)
+target_compile_options(${PROJECT_NAME}
+  PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>
+)
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
     ${PADDLE_LIB}      # Paddle CMake 包导出的 target
+    ${PADDLE_PHI_CORE_LIB}
     ${CUDA_CUDART_LIBRARY}
 )
 
 # 输出 .so 到 Python 扩展模块的目录
 # build_ext 会将 build_lib 设置成你安装时的目标目录
-set_target_properties(${PROJECT_NAME}
-    PROPERTIES
-        PREFIX ""                  # 不要前缀 lib
-        OUTPUT_NAME "${PROJECT_NAME}"
-        SUFFIX ".so"
+# 设置 RPATH，让运行时定位 Paddle 依赖
+# 设置 RPATH，让运行时定位 Paddle 依赖
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    BUILD_RPATH "/usr/local/lib/python3.12/dist-packages/paddle/libs:/usr/local/lib/python3.12/dist-packages/paddle/base"
+    INSTALL_RPATH "/usr/local/lib/python3.12/dist-packages/paddle/libs:/usr/local/lib/python3.12/dist-packages/paddle/base"
+    PREFIX ""                   # 不要 lib 前缀
+    OUTPUT_NAME "${PROJECT_NAME}"
+    SUFFIX ".so"
 )
