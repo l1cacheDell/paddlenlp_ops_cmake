@@ -63,9 +63,10 @@ def custom_write_stub_cmake(resource, pyfile):
     print(666666)
     print("努力奋斗")
 
+
     api_content = []
 
-    # Parse registering op information
+    # TODO: 这个地方需要看看怎么灵活用
     so_path = "build/custom_relu_setup_cmake/lib.linux-x86_64-cpython-312/custom_relu_setup_cmake.so"
 
     new_custom_ops = load_op_meta_info_and_register_op(so_path)
@@ -82,6 +83,7 @@ def custom_write_stub_cmake(resource, pyfile):
             )
         )
 
+# hook
 extension_utils.custom_write_stub = custom_write_stub_cmake
 
 

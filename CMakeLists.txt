@@ -34,10 +34,13 @@ set(CMAKE_PREFIX_PATH
 find_package(CUDA REQUIRED)
 find_package(pybind11 REQUIRED)
 
-# 源码列表
-set(SRC
-    csrc/relu.cu
-)
+# Configure CCache if available
+find_program(CCACHE_FOUND ccache)
+if(CCACHE_FOUND)
+    message(STATUS "Using ccache: ${CCACHE_PROGRAM}")
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+endif(CCACHE_FOUND)
 
 add_definitions("-DPADDLE_WITH_CUDA")
 
@@ -67,7 +70,10 @@ message(STATUS "Found Paddle lib = ${PADDLE_LIB}")
 message(STATUS "Found Paddle phi_core: ${PADDLE_PHI_CORE_LIB}")
 
 # 生成一个共享库，名字和 setup.py 中给的 name 保持一致
-add_library(${PROJECT_NAME} SHARED csrc/relu.cu)
+# add_library(${PROJECT_NAME} SHARED csrc/relu.cu)
+add_subdirectory(csrc)
+
+add_library(${PROJECT_NAME} SHARED $<TARGET_OBJECTS:relu_obj>)
 target_compile_options(${PROJECT_NAME}
   PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_NVCC_FLAGS}>
 )
